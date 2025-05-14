@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Gestor de Libros</string>
+    <string name="itemAdd">Agregar</string>
+    <string name="itemOptions">Opciones</string>
+    <string name="itemExit">Salir</string>
+    <string name="title">Título</string>
+    <string name="author">Autor</string>
+    <string name="publisher">Editorial</string>
+    <string name="genre">Género</string>
+    <string name="year">Año</string>
+    <string name="select_photo">Seleccionar Portada</string>
+    <string name="edit_book">Editar Libro</string>
+    <string name="delete_book">Eliminar Libro</string>
+    <string name="book_cover">Presentacion de Libro</string>
+</resources>

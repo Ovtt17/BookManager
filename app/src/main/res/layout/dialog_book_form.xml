@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:divider="?android:attr/dividerHorizontal"
+        android:showDividers="middle"
+        android:dividerPadding="8dp"
+        android:layout_marginBottom="8dp">
+
+        <EditText
+            android:id="@+id/etTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="title"
+            android:hint="@string/title"
+            android:inputType="textCapWords"
+            android:padding="15dp" />
+
+        <EditText
+            android:id="@+id/etAuthor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="name"
+            android:hint="@string/author"
+            android:inputType="textPersonName"
+            android:padding="15dp" />
+
+        <EditText
+            android:id="@+id/etPublisher"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="organizationName"
+            android:hint="@string/publisher"
+            android:inputType="textCapWords"
+            android:padding="15dp" />
+
+        <EditText
+            android:id="@+id/etGenre"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="genre"
+            android:hint="@string/genre"
+            android:inputType="textCapWords"
+            android:padding="15dp" />
+
+        <EditText
+            android:id="@+id/etYear"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="year"
+            android:hint="@string/year"
+            android:inputType="number"
+            android:padding="15dp" />
+    </LinearLayout>
+</ScrollView>
