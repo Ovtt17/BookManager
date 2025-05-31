@@ -1,6 +1,9 @@
 package com.example.bookmanager
 
+import android.database.Cursor
+import android.database.sqlite.SQLiteDatabase
 import android.os.Bundle
+import android.provider.BaseColumns
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.EditText
@@ -12,12 +15,17 @@ import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bookmanager.adapter.BookAdapter
+import com.example.bookmanager.contract.BookContract.BookEntry
+import com.example.bookmanager.db.BookDBHelper
 import com.example.bookmanager.model.Book
+import android.content.ContentValues
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var books: MutableList<Book>
     private lateinit var adapter: BookAdapter
+    private lateinit var bookDBHelper: BookDBHelper
+    private lateinit var db: SQLiteDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,48 +34,10 @@ class MainActivity : AppCompatActivity() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
 
-        books = mutableListOf(
-            Book(
-                1,
-                "Matar a un ruiseñor",
-                "Harper Lee",
-                "J.B. Lippincott & Co.",
-                "Ficción",
-                1960,
-            ),
-            Book(
-                2,
-                "1984",
-                "George Orwell",
-                "Secker & Warburg",
-                "Distopía",
-                1949,
-            ),
-            Book(
-                3,
-                "El gran Gatsbyqq",
-                "F. Scott Fitzgerald",
-                "Charles Scribner's Sons",
-                "Clásico",
-                1925,
-            ),
-            Book(
-                4,
-                "Orgullo y prejuicio",
-                "Jane Austen",
-                "T. Egerton",
-                "Romance",
-                1813,
-            ),
-            Book(
-                5,
-                "Moby-Dick",
-                "Herman Melville",
-                "Harper & Brothers",
-                "Aventura",
-                1851,
-            )
-        )
+        bookDBHelper = BookDBHelper(this)
+        db = bookDBHelper.writableDatabase
+
+        books = getBooksFromCursor(loadBooks())
 
         val recyclerView: RecyclerView = findViewById(R.id.recyclerView)
         adapter = BookAdapter(
@@ -97,6 +67,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadBooks(): Cursor {
+        val columns = arrayOf(
+            BaseColumns._ID,
+            BookEntry.COLUMN_NAME_TITLE,
+            BookEntry.COLUMN_NAME_AUTHOR,
+            BookEntry.COLUMN_NAME_PUBLISHER,
+            BookEntry.COLUMN_NAME_GENRE,
+            BookEntry.COLUMN_NAME_YEAR
+        )
+        return db.query(BookEntry.TABLE_NAME, columns, null, null, null, null, null)
+    }
+
+    private fun getBooksFromCursor(cursor: Cursor): MutableList<Book> {
+        val bookList = mutableListOf<Book>()
+        with(cursor) {
+            while (moveToNext()) {
+                val id = getLong(getColumnIndexOrThrow(BaseColumns._ID))
+                val title = getString(getColumnIndexOrThrow(BookEntry.COLUMN_NAME_TITLE))
+                val author = getString(getColumnIndexOrThrow(BookEntry.COLUMN_NAME_AUTHOR))
+                val publisher = getString(getColumnIndexOrThrow(BookEntry.COLUMN_NAME_PUBLISHER))
+                val genre = getString(getColumnIndexOrThrow(BookEntry.COLUMN_NAME_GENRE))
+                val year = getInt(getColumnIndexOrThrow(BookEntry.COLUMN_NAME_YEAR))
+                bookList.add(Book(id, title, author, publisher, genre, year))
+            }
+        }
+        cursor.close()
+        return bookList
+    }
+
     private fun handleAddBook() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_book_form, null)
         val dialog = AlertDialog.Builder(this)
@@ -120,20 +119,28 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "Por favor, complete todos los campos", Toast.LENGTH_SHORT)
                         .show()
                 } else {
-                    val newBook = Book(
-                        id = System.currentTimeMillis(),
-                        title = title,
-                        author = author,
-                        publisher = publisher,
-                        genre = genre,
-                        year = year,
-                    )
+                    val values = ContentValues().apply {
+                        put(BookEntry.COLUMN_NAME_TITLE, title)
+                        put(BookEntry.COLUMN_NAME_AUTHOR, author)
+                        put(BookEntry.COLUMN_NAME_PUBLISHER, publisher)
+                        put(BookEntry.COLUMN_NAME_GENRE, genre)
+                        put(BookEntry.COLUMN_NAME_YEAR, year)
+                    }
 
-                    books.add(newBook)
-                    adapter.notifyItemInserted(books.size - 1)
-
-                    Toast.makeText(this, "Libro agregado: $title", Toast.LENGTH_SHORT).show()
-                    dialog.dismiss()
+                    val newRowId = db.insert(BookEntry.TABLE_NAME, null, values)
+                    if (newRowId != -1L) {
+                        val newBook = getBooksFromCursor(loadBooks()).last()
+                        books.add(newBook)
+                        adapter.notifyItemInserted(books.lastIndex)
+                        Toast.makeText(this, "Libro agregado: $title", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "Error al guardar en la base de datos",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
         }
@@ -175,18 +182,35 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "Por favor, complete todos los campos", Toast.LENGTH_SHORT)
                         .show()
                 } else {
-                    book.title = updatedTitle
-                    book.author = updatedAuthor
-                    book.publisher = updatedPublisher
-                    book.genre = updatedGenre
-                    book.year = updatedYear
+                    val values = ContentValues().apply {
+                        put(BookEntry.COLUMN_NAME_TITLE, updatedTitle)
+                        put(BookEntry.COLUMN_NAME_AUTHOR, updatedAuthor)
+                        put(BookEntry.COLUMN_NAME_PUBLISHER, updatedPublisher)
+                        put(BookEntry.COLUMN_NAME_GENRE, updatedGenre)
+                        put(BookEntry.COLUMN_NAME_YEAR, updatedYear)
+                    }
 
-                    val position = books.indexOf(book)
-                    adapter.notifyItemChanged(position)
+                    val updatedRows = db.update(
+                        BookEntry.TABLE_NAME,
+                        values,
+                        "${BaseColumns._ID} = ?",
+                        arrayOf(book.id.toString())
+                    )
 
-                    Toast.makeText(this, "Libro actualizado: $updatedTitle", Toast.LENGTH_SHORT)
-                        .show()
-                    dialog.dismiss()
+                    if (updatedRows > 0) {
+                        val index = books.indexOfFirst { it.id == book.id }
+                        if (index != -1) {
+                            val updatedBook = getBooksFromCursor(loadBooks()).first { it.id == book.id }
+                            books[index] = updatedBook
+                            adapter.notifyItemChanged(index)
+                        }
+                        Toast.makeText(this, "Libro actualizado: $updatedTitle", Toast.LENGTH_SHORT)
+                            .show()
+                        dialog.dismiss()
+                    } else {
+                        Toast.makeText(this, "Error al actualizar el libro", Toast.LENGTH_SHORT)
+                            .show()
+                    }
                 }
             }
         }
@@ -194,17 +218,42 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun handleDeleteBook(book: Book) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Eliminar Libro")
+            .setMessage("¿Está seguro de que desea eliminar ${book.title}?")
+            .setPositiveButton("Eliminar") { _, _ ->
+                val deletedRows = db.delete(
+                    BookEntry.TABLE_NAME,
+                    "${BaseColumns._ID} = ?",
+                    arrayOf(book.id.toString())
+                )
+
+                if (deletedRows > 0) {
+                    val index = books.indexOfFirst { it.id == book.id }
+                    if (index != -1) {
+                        books.removeAt(index)
+                        adapter.notifyItemRemoved(index)
+                    }
+                    Toast.makeText(this, "${book.title} eliminado", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Error al eliminar el libro", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .create()
+
+        dialog.show()
+    }
+
     private fun handleItemClick(book: Book) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_book_details, null)
-
-        // Bind the book details to the dialog's TextViews
         dialogView.findViewById<TextView>(R.id.titleTextView).text = book.title
         dialogView.findViewById<TextView>(R.id.authorTextView).text = book.author
         dialogView.findViewById<TextView>(R.id.publisherTextView).text = book.publisher
         dialogView.findViewById<TextView>(R.id.genreTextView).text = book.genre
         dialogView.findViewById<TextView>(R.id.yearTextView).text = book.year.toString()
 
-        // Create and show the dialog
         AlertDialog.Builder(this)
             .setView(dialogView)
             .setTitle("Detalles del Libro")
@@ -213,19 +262,8 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun handleDeleteBook(book: Book) {
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Eliminar Libro")
-            .setMessage("¿Está seguro de que desea eliminar ${book.title}?")
-            .setPositiveButton("Eliminar") { _, _ ->
-                val position = books.indexOf(book)
-                books.remove(book)
-                adapter.notifyItemRemoved(position)
-                Toast.makeText(this, "${book.title} eliminado", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancelar", null)
-            .create()
-
-        dialog.show()
+    override fun onDestroy() {
+        bookDBHelper.close()
+        super.onDestroy()
     }
 }
